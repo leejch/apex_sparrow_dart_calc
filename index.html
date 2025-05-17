@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!--
+  apex_sparrow_dart_calc
+  A Sparrow Tracker Dart trajectory calculator for Apex Legends
+
+  Copyright (C) 2025 https://github.com/leejch
+
+  This file is part of apex_sparrow_dart_calc.
+
+  apex_sparrow_dart_calc is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  apex_sparrow_dart_calc is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+  See the GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with apex_sparrow_dart_calc. If not, see <https://www.gnu.org/licenses/>.
+
+  Author: https://github.com/leejch
+  GitHub: https://github.com/leejch/apex_sparrow_dart_calc
+  -->
+  <meta charset="UTF-8">
+  <title>琉雀 Tracker Dart 射击角度计算器</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white shadow-lg rounded-lg p-6 w-full max-w-2xl">
+    <h1 class="text-2xl font-bold mb-4">琉雀 Tracker Dart 射击角度计算器</h1>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="block text-gray-700">水平距离 d (m)</label>
+        <input id="inputD" type="number" step="0.01"
+               class="mt-1 w-full border rounded px-2 py-1" placeholder="例如: 280">
+      </div>
+      <div>
+        <label class="block text-gray-700">瞄准倾角 θ<sub>aim</sub> (°)</label>
+        <input id="inputThetaAim" type="number" step="0.01"
+               class="mt-1 w-full border rounded px-2 py-1" placeholder="例如: 10">
+      </div>
+    </div>
+
+    <button id="calcBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2 rounded">
+      计算射击角度
+    </button>
+
+    <div id="results" class="mt-6 space-y-2 text-gray-800"></div>
+
+    <canvas id="trajCanvas" class="mt-6 border aspect-video"></canvas>
+
+    <div id="legend" class="flex items-center gap-6 mt-4">
+      <div class="flex items-center">
+        <span class="inline-block w-6 h-1 bg-blue-500 mr-2"></span>
+        <span>低射轨迹</span>
+      </div>
+      <div class="flex items-center">
+        <span class="inline-block w-6 h-1 bg-red-500 mr-2"></span>
+        <span>高射轨迹</span>
+      </div>
+    </div>
+    <div class="mt-4 text-sm text-gray-200 text-center mx-auto">Copyright (C) 2024 <a href="https://github.com/leejch">https://github.com/leejch</a></div>
+    <div class="text-sm text-gray-200 text-center mx-auto">LICENSE: <a href="https://www.gnu.org/licenses/gpl-3.0.html">GPLv3</a></div>
+  </div>
+
+  <script>
+    // We used the empirically determined firing speed (100.37 m/s) from
+    // https://github.com/NYTN02/APEX_thetacalculation
+    const v0 = 100.37;
+
+    function getG(theta) {
+      if (theta >= 25.00 && theta <= 46.77)       return 0.17889 * theta + 16.23330;
+      else if (theta > 46.77 && theta <= 53.58)   return 0.46990 * theta + 2.62278;
+      else if (theta > 53.58 && theta <= 66.95)   return 0.29918 * theta + 11.76994;
+      else if (theta > 66.95 && theta <= 81.89)   return 0.23352 * theta + 16.16584;
+      else if (theta > 81.89 && theta < 89.00)    return 0.27639 * theta + 12.65522;
+      else return null;
+    }
+
+    function F(theta, d, h) {
+      const gθ = getG(theta);
+      if (gθ === null) return 1e6;
+      const rad = theta * Math.PI / 180;
+      return d * Math.tan(rad)
+           - gθ * d*d / (2 * v0*v0 * Math.cos(rad)**2)
+           - h;
+    }
+
+    function isDescending(theta, d) {
+      const gθ = getG(theta);
+      const rad = theta * Math.PI / 180;
+      return (Math.tan(rad) - gθ * d / (v0*v0 * Math.cos(rad)**2)) < 0;
+    }
+
+    function bisectRoot(fn, a, b, tol=1e-6, maxIter=50) {
+      let fa = fn(a), fb = fn(b);
+      if (fa * fb > 0) return null;
+      for (let i = 0; i < maxIter; i++) {
+        const m = (a + b)/2, fm = fn(m);
+        if (fa * fm <= 0) { b = m; fb = fm; }
+        else            { a = m; fa = fm; }
+        if (Math.abs(b - a) < tol) break;
+      }
+      return (a + b)/2;
+    }
+
+    function findAllRoots(d, h) {
+      const roots = [], step=0.01, thetas=[];
+      for (let t=25.00; t<89.00; t+=step) thetas.push(+t.toFixed(2));
+      const Fs = thetas.map(t=>F(t,d,h));
+      for (let i=0;i<thetas.length-1;i++){
+        if (Fs[i]*Fs[i+1]<0) {
+          const r = bisectRoot(t=>F(t,d,h), thetas[i], thetas[i+1]);
+          if (r!==null) roots.push(+r.toFixed(5));
+        }
+      }
+      return [...new Set(roots)].sort((a,b)=>a-b);
+    }
+
+    function classify(roots, d) {
+      const desc = roots.filter(r=>isDescending(r,d)).sort((a,b)=>a-b);
+      const asc  = roots.filter(r=>!isDescending(r,d)).sort((a,b)=>a-b);
+      let low=null, high=null;
+      if (desc.length>=2)       { low=desc[0]; high=desc.at(-1); }
+      else if (desc.length===1) {
+        high = desc[0];
+        const vasc = asc.filter(r=>r<high);
+        if (vasc.length) low = Math.max(...vasc);
+      } else if (asc.length)    { low = Math.max(...asc); }
+      return { low, high };
+    }
+
+    document.getElementById('calcBtn').onclick = ()=>{
+      const d = parseFloat(document.getElementById('inputD').value);
+      const θaim = parseFloat(document.getElementById('inputThetaAim').value);
+      const h = d * Math.tan(θaim * Math.PI/180);
+
+      const nom   = findAllRoots(d, h);
+      const near  = d>2 ? findAllRoots(d-2, h) : [];
+      const far   = d>2 ? findAllRoots(d+2, h) : [];
+      const Rn    = classify(nom, d);
+      const Rnear = classify(near, d-2);  // 低射最小&高射最小
+      const Rfar  = classify(far,  d+2);  // 低射最大&高射最大
+
+      const out = [];
+      if (Rn.high != null) out.push(`高射角 θ_high = ${Rn.high.toFixed(2)}°`);
+      if (Rn.low  != null) out.push(`低射角 θ_low = ${Rn.low.toFixed(2)}°`);
+      if (Rnear.high != null) out.push(`高射最小角 θ_high_min = ${Rnear.high.toFixed(2)}°`);
+      if (Rfar.high  != null) out.push(`高射最大角 θ_high_max = ${Rfar.high.toFixed(2)}°`);
+      if (Rnear.low  != null) out.push(`低射最小角 θ_low_min = ${Rnear.low.toFixed(2)}°`);
+      if (Rfar.low   != null) out.push(`低射最大角 θ_low_max = ${Rfar.low.toFixed(2)}°`);
+
+      document.getElementById('results').innerHTML =
+        out.map(l=>`<div>${l}</div>`).join('');
+
+      drawTrajectories(d, h, Rn.low, Rn.high);
+    };
+
+    function drawTrajectories(d, h, θlow, θhigh){
+      const canvas = document.getElementById('trajCanvas');
+      const ctx = canvas.getContext('2d');
+      const W=canvas.width, H=canvas.height;
+      ctx.clearRect(0,0,W,H);
+      ctx.font="12px sans-serif"; ctx.fillStyle="#000"; ctx.strokeStyle="#999"; ctx.lineWidth=1;
+
+      // 坐标轴
+      const ml=40, mb=30;
+      ctx.beginPath();
+      ctx.moveTo(ml,10);
+      ctx.lineTo(ml,H-mb);
+      ctx.lineTo(W-10,H-mb);
+      ctx.stroke();
+
+      // 缩放
+      const maxX = d * 1.2;
+      const ys=[];
+      [θlow,θhigh].forEach(theta=>{
+        if (theta==null) return;
+        const gθ=getG(theta), rad=theta*Math.PI/180;
+        const tEnd = h>=0 ? 2*v0*Math.sin(rad)/gθ : d/(v0*Math.cos(rad));
+        for (let t=0; t<=tEnd; t+=tEnd/200)
+          ys.push(v0*Math.sin(rad)*t - 0.5*gθ*t*t);
+      });
+      ys.push(h);
+      const maxY = Math.max(...ys)*1.1;
+
+      // X 刻度
+      for (let i=0;i<=5;i++){
+        const xv = maxX * i/5;
+        const cx = ml + (xv/maxX)*(W-ml-10);
+        ctx.beginPath();
+        ctx.moveTo(cx,H-mb);
+        ctx.lineTo(cx,H-mb+5);
+        ctx.stroke();
+        ctx.fillText(xv.toFixed(0), cx-10, H-5);
+      }
+      // Y 刻度
+      for (let i=0;i<=5;i++){
+        const yv = maxY * i/5;
+        const cy = H-mb - (yv/maxY)*(H-mb-10);
+        ctx.beginPath();
+        ctx.moveTo(ml, cy);
+        ctx.lineTo(ml-5, cy);
+        ctx.stroke();
+        ctx.fillText(yv.toFixed(0), 5, cy+4);
+      }
+
+      // 绘制轨迹
+      function plot(theta, color){
+        if (theta==null) return;
+        const gθ=getG(theta), rad=theta*Math.PI/180;
+        const tEnd = h>=0 ? 2*v0*Math.sin(rad)/gθ : d/(v0*Math.cos(rad));
+        ctx.strokeStyle=color; ctx.lineWidth=2;
+        ctx.beginPath();
+        for (let t=0; t<=tEnd; t+=tEnd/200){
+          const x = v0*Math.cos(rad)*t;
+          const y = v0*Math.sin(rad)*t - 0.5*gθ*t*t;
+          const cx = ml + (x/maxX)*(W-ml-10);
+          const cy = H-mb - (y/maxY)*(H-mb-10);
+          t===0 ? ctx.moveTo(cx,cy) : ctx.lineTo(cx,cy);
+        }
+        ctx.stroke();
+      }
+
+      plot(θlow, 'blue');
+      plot(θhigh,'red');
+
+      // 目标点
+      const tx = ml + (d/maxX)*(W-ml-10);
+      const ty = H-mb - (h/maxY)*(H-mb-10);
+      ctx.fillStyle='black';
+      ctx.beginPath(); ctx.arc(tx,ty,4,0,2*Math.PI); ctx.fill();
+      ctx.fillText('目标', tx+6, ty-6);
+    }
+  </script>
+</body>
+</html>
