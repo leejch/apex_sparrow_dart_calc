@@ -2,6 +2,12 @@
 
 <br>English / [简体中文](README.md)<br><br>
 
+## Web Version
+
+To use the web version, please visit: [Sparrow Tracker Dart Shooting Angle Calculator](https://leejch.github.io/apex_sparrow_dart_calc/)
+
+## Overview
+
 The apex_sparrow_dart_calc repository provides a comprehensive shooting angle calculator for Sparrow’s Tracker Dart in Apex Legends, integrating data fitting, trajectory plotting, and a piecewise linear gravity model in four modules.
 
 It first employs PyTorch to fit a nonlinear mapping from firing angle θ to gravity g based on experimental data, producing predictions across the full angle range.

@@ -2,6 +2,12 @@
 
 <br>简体中文 / [English](README_EN.md)<br><br>
 
+## 网页版
+
+直接使用网页版，请访问: [琉雀追踪器飞镖射击角度计算器](https://leejch.github.io/apex_sparrow_dart_calc/)
+
+## 项目简介
+
 Apex Legends新传奇琉雀的追踪器飞镖技能的射击角度计算器，集数据拟合、轨迹绘制和分段线性模型于一体。
 
 首先基于实测数据，使用 PyTorch 对倾角 θ 与对应重力加速度 g 构建非线性回归模型，生成全角度范围内的预测结果。
