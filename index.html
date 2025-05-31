@@ -29,6 +29,7 @@
   <title>APEX投掷物射击角度计算器</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="speech.js" defer></script>
 </head>
 
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
@@ -304,8 +305,36 @@
       if (Rfar.low   != null) out.push(`低射最大角 θ_low_max  = ${Rfar.low.toFixed(2)}°`);
 
       document.getElementById('results').innerHTML = out.map(l=>`<div>${l}</div>`).join('');
-      drawTrajectories(d, h, Rn.low, Rn.high);
+      showResults(d, h, Rn.low, Rn.high);
     };
+
+    function showResults(d, h, theta_low, theta_high) {
+      const results = document.getElementById('results');
+      results.innerHTML = '';
+      let resultText = '';
+
+      if (theta_low === null && theta_high === null) {
+        resultText = '无解！请调整参数重试。';
+        results.innerHTML = `<div class="text-red-500">${resultText}</div>`;
+      } else {
+        if (theta_low !== null) {
+          resultText += `低射角度: ${theta_low.toFixed(2)}度`;
+          results.innerHTML += `<div>低射角度: <span class="font-mono">${theta_low.toFixed(2)}°</span></div>`;
+        }
+        if (theta_high !== null) {
+          resultText += theta_low !== null ? '，' : '';
+          resultText += `高射角度: ${theta_high.toFixed(2)}度`;
+          results.innerHTML += `<div>高射角度: <span class="font-mono">${theta_high.toFixed(2)}°</span></div>`;
+        }
+      }
+
+      // 语音播报计算结果
+      if (window.speechHandler) {
+        speechHandler.speak(resultText);
+      }
+
+      drawTrajectories(d, h, theta_low, theta_high);
+    }
   </script>
 </body>
 </html>
