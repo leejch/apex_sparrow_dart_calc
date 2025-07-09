@@ -41,7 +41,7 @@ Apex Legends新传奇琉雀的追踪器飞镖技能的射击角度计算器，�
 
 Copyright (C) 2025 [leejch](https://github.com/leejch)
 
-本项目采用 [GPLv3 许可证](https://www.gnu.org/licenses/gpl-3.0.html) 开源发布。
-你可以自由使用、修改和分发本软件，但必须保留原始版权信息，并在再发布时也使用 GPLv3 或兼容许可。
+本项目采用 [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) 开源发布。
+你可以自由使用、修改和分发本软件，但必须保留原始版权声明和许可证，并遵循 Apache 2.0 的条款。
 
-本程序按“原样”提供，不附带任何担保，包括适销性或适用于特定目的的适用性。
+除非适用法律要求或书面同意，否则根据本许可证分发的软件均按“原样”提供，不附带任何明示或暗示的担保或条件。有关权限和限制的具体条款，请参阅许可证。
