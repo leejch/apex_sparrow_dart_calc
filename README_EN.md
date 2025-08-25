@@ -38,8 +38,6 @@ This project builds on:
 
 ## License
 
-## License
-
 Copyright (C) 2025 [leejch](https://github.com/leejch)
 
 This project is licensed under the terms of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
